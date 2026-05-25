@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 
 const ADMIN_EMAIL = 'amaranaeem453@gmail.com'
 
-export default function SignInPage() {
+function SignInContent() {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const redirectTo   = searchParams.get('redirect') || '/'
@@ -47,7 +47,6 @@ export default function SignInPage() {
       return
     }
 
-    // Admin goes to dashboard, others go to redirect target
     if (data.user?.email === ADMIN_EMAIL) {
       router.push('/admin')
     } else {
@@ -64,7 +63,6 @@ export default function SignInPage() {
       className="relative w-full max-w-md"
     >
       <div className="card-eclat p-8 md:p-10 border border-[var(--border-subtle)]">
-        {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-6 group">
             <span
@@ -85,7 +83,6 @@ export default function SignInPage() {
         </div>
 
         <form onSubmit={submit} className="space-y-4">
-          {/* Email */}
           <div>
             <label className="text-label text-[var(--text-secondary)] tracking-widest text-[0.6rem] block mb-1.5">
               EMAIL ADDRESS
@@ -102,14 +99,11 @@ export default function SignInPage() {
             />
           </div>
 
-          {/* Password */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-label text-[var(--text-secondary)] tracking-widest text-[0.6rem]">
                 PASSWORD
               </label>
-              {/* Future: forgot password link */}
-              {/* <Link href="/forgot-password" className="text-[0.6rem] text-[var(--accent-gold)] hover:underline">Forgot?</Link> */}
             </div>
             <div className="relative">
               <input
@@ -137,7 +131,6 @@ export default function SignInPage() {
             </div>
           </div>
 
-          {/* Error */}
           {error && (
             <motion.p
               initial={{ opacity: 0, y: -4 }}
@@ -170,5 +163,13 @@ export default function SignInPage() {
         </p>
       </div>
     </motion.div>
+  )
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-[var(--text-muted)]">Loading…</div>}>
+      <SignInContent />
+    </Suspense>
   )
 }
