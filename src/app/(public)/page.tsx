@@ -109,7 +109,7 @@ function HeroSection() {
       {/* Parallax Background */}
       <motion.div className="absolute inset-0 z-0" style={{ y }}>
         <Image
-          src="/images/hero-bg.jpg.jpg"
+          src="/images/ambiance.jpg"
           alt="Éclat Fine Dining"
           fill
           priority
