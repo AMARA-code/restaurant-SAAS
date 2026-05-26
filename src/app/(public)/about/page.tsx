@@ -91,7 +91,7 @@ const FALLBACK_GALLERY: GalleryImage[] = [
 
 const SLIDES = [
   {
-    image: '/images/hero-bg.jpg.jpg',
+    image:  '/images/alexandru-bogdan-ghita-ueykqqh4poi-unsplash (1).jpg',
     eyebrow: 'The Art of Fine Dining',
     title: 'Where Every',
     titleItalic: 'Moment',
@@ -100,7 +100,7 @@ const SLIDES = [
     tag: 'Est. 2020',
   },
   {
-    image: '/images/redd-francisco-o1sdskce8ie-unsplash.jpg',
+    image: '/images/event.jpg',
     eyebrow: 'The Ambiance',
     title: 'Theatre of',
     titleItalic: 'Taste &',
@@ -118,7 +118,7 @@ const SLIDES = [
     tag: 'Our Story',
   },
   {
-    image: '/images/alexandru-bogdan-ghita-ueykqqh4poi-unsplash (1).jpg',
+    image: '/images/cuisen-3.jpg',
     eyebrow: 'The Craft',
     title: 'Flavours',
     titleItalic: 'Forged',
