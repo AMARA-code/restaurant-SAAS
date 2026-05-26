@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 
-const ADMIN_EMAIL = 'amaranaeem453@gmail.com'
+import { isAdminEmail } from '@/lib/admin-config'
 
 function SignInContent() {
   const router       = useRouter()
@@ -47,7 +47,7 @@ function SignInContent() {
       return
     }
 
-    if (data.user?.email === ADMIN_EMAIL) {
+    if (isAdminEmail(data.user?.email)) {
       router.push('/admin')
     } else {
       router.push(redirectTo)

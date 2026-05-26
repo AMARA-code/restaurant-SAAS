@@ -69,7 +69,7 @@ export default function ReservationForm() {
     if (dateStr) fetchSlots(dateStr)
   }, [dateStr, fetchSlots])
 
-  // Realtime: refresh slots when reservations change for this date
+  // Realtime: refresh when reservations or slot config change
   useEffect(() => {
     if (!dateStr) return
 
@@ -83,6 +83,17 @@ export default function ReservationForm() {
           schema: 'public',
           table: 'reservations',
           filter: `date=eq.${dateStr}`,
+        },
+        () => {
+          fetchSlots(dateStr)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'reservation_slots',
         },
         () => {
           fetchSlots(dateStr)

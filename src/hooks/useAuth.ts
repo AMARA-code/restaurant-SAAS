@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 
-const ADMIN_EMAIL = 'amaranaeem453@gmail.com'
+import { isAdminEmail } from '@/lib/admin-config'
 
 export function useAuth() {
   const [user, setUser]       = useState<User | null>(null)
@@ -27,7 +27,7 @@ export function useAuth() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const isAdmin = user?.email === ADMIN_EMAIL
+  const isAdmin = isAdminEmail(user?.email)
 
   const signOut = async () => {
     await supabase.auth.signOut()

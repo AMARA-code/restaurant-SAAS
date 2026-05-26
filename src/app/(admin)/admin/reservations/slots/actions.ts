@@ -69,9 +69,7 @@ export async function upsertAdminSlot(input: {
       if (error) throw error
     }
 
-    revalidatePath('/admin/reservations/slots')
-    revalidatePath('/admin/reservations')
-    revalidatePath('/reservations')
+    revalidateSlotPaths()
     return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to save slot'
@@ -95,7 +93,50 @@ export async function removeAdminSlot(
     return { success: false, error: error.message }
   }
 
-  revalidatePath('/admin/reservations/slots')
-  revalidatePath('/reservations')
+  revalidateSlotPaths()
   return { success: true }
+}
+
+function revalidateSlotPaths() {
+  revalidatePath('/admin/reservations/slots')
+  revalidatePath('/admin/reservations')
+  revalidatePath('/reservations')
+}
+
+export async function patchAdminSlot(
+  id: string,
+  updates: { max_covers?: number; label?: string; sort_order?: number; is_active?: boolean }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createAdminClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any
+
+    const payload: Record<string, unknown> = {}
+    if (updates.max_covers !== undefined) {
+      payload.max_covers = Math.max(1, Math.min(100, Number(updates.max_covers) || 24))
+    }
+    if (updates.label !== undefined) {
+      payload.label = updates.label.trim()
+    }
+    if (updates.sort_order !== undefined) {
+      payload.sort_order = Number(updates.sort_order) || 0
+    }
+    if (updates.is_active !== undefined) {
+      payload.is_active = updates.is_active
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return { success: false, error: 'No changes to save' }
+    }
+
+    const { error } = await db.from('reservation_slots').update(payload).eq('id', id)
+    if (error) throw error
+
+    revalidateSlotPaths()
+    return { success: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to update slot'
+    return { success: false, error: msg }
+  }
 }

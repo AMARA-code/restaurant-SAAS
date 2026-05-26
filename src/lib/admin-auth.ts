@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'amaranaeem453@gmail.com'
+import { isAdminEmail } from '@/lib/admin-config'
 
 export async function requireAdminSession() {
   const supabase = await createClient()
@@ -9,7 +8,7 @@ export async function requireAdminSession() {
     error,
   } = await supabase.auth.getUser()
 
-  if (error || !user?.email || user.email !== ADMIN_EMAIL) {
+  if (error || !isAdminEmail(user?.email)) {
     return null
   }
 

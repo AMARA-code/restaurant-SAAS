@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-
-const ADMIN_EMAIL   = 'amaranaeem453@gmail.com'
+import { isAdminEmail } from '@/lib/admin-config'
 const PROTECTED_ADMIN = /^\/admin(\/.*)?$/
 
 export async function middleware(request: NextRequest) {
@@ -37,7 +36,7 @@ export async function middleware(request: NextRequest) {
       url.searchParams.set('redirect', pathname)
       return NextResponse.redirect(url)
     }
-    if (session.user.email !== ADMIN_EMAIL) {
+    if (!isAdminEmail(session.user.email)) {
       // Authenticated but not admin → redirect home
       const url = request.nextUrl.clone()
       url.pathname = '/'
@@ -48,7 +47,7 @@ export async function middleware(request: NextRequest) {
   // ── Redirect already-signed-in users away from auth pages ─────────────────
   if (session && (pathname === '/signin' || pathname === '/signup')) {
     const url = request.nextUrl.clone()
-    url.pathname = session.user.email === ADMIN_EMAIL ? '/admin' : '/'
+    url.pathname = isAdminEmail(session.user.email) ? '/admin' : '/'
     return NextResponse.redirect(url)
   }
 
