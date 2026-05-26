@@ -78,6 +78,7 @@ export type Database = {
           total_orders: number
           total_spent: number
           notes: string | null
+          inactive_reminder_sent_at: string | null
           created_at: string
           updated_at: string
         }
@@ -89,6 +90,7 @@ export type Database = {
           total_orders?: number
           total_spent?: number
           notes?: string | null
+          inactive_reminder_sent_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -316,6 +318,41 @@ export type Database = {
         }
         Update: Partial<Database['public']['Tables']['newsletter_subscribers']['Insert']>
       }
+      promotions: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          code: string | null
+          discount_type: 'percentage' | 'fixed'
+          discount_value: number
+          min_order_amount: number
+          max_uses: number | null
+          uses_count: number
+          is_active: boolean
+          starts_at: string | null
+          expires_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          code?: string | null
+          discount_type: 'percentage' | 'fixed'
+          discount_value: number
+          min_order_amount?: number
+          max_uses?: number | null
+          uses_count?: number
+          is_active?: boolean
+          starts_at?: string | null
+          expires_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['promotions']['Insert']>
+      }
     }
     Enums: {
       order_status: OrderStatus
@@ -359,3 +396,4 @@ export type Chef         = Database['public']['Tables']['chefs']['Row']
 export type SiteSetting  = Database['public']['Tables']['site_settings']['Row']
 export type BlogPost     = Database['public']['Tables']['blog_posts']['Row']
 export type Subscriber   = Database['public']['Tables']['newsletter_subscribers']['Row']
+export type Promotion    = Database['public']['Tables']['promotions']['Row']

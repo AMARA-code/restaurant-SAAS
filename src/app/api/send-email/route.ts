@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
-import {
-  sendAdminNewOrderEmail,
-  sendOrderConfirmedEmail,
-} from '@/lib/email'
+import { sendOrderConfirmedEmail } from '@/lib/email'
 
 /**
  * Internal email trigger — used by admin CRM (Phase 6) or webhooks.
@@ -41,10 +38,6 @@ export async function POST(request: Request) {
     }
 
     switch (type) {
-      case 'order_placed':
-      case 'admin_new_order':
-        await sendAdminNewOrderEmail(order)
-        break
       case 'order_confirmed':
       case 'payment_received':
         await sendOrderConfirmedEmail(order)

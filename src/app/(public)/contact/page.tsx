@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useMemo } from 'react'
+import { useSiteSettings, type SiteSettings } from '@/hooks/useSiteSettings'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
@@ -51,18 +52,6 @@ const slideRight: Variants = {
     transition: { duration: 0.8, ease: EASE },
   },
 }
-
-// ─── Opening Hours Data ───────────────────────────────────────────────────────
-
-const HOURS = [
-  { day: 'Monday',    open: '5:00 PM', close: '11:00 PM', closed: false },
-  { day: 'Tuesday',   open: '5:00 PM', close: '11:00 PM', closed: false },
-  { day: 'Wednesday', open: '5:00 PM', close: '11:00 PM', closed: false },
-  { day: 'Thursday',  open: '5:00 PM', close: '11:00 PM', closed: false },
-  { day: 'Friday',    open: '5:00 PM', close: '11:00 PM', closed: false },
-  { day: 'Saturday',  open: '5:00 PM', close: '11:00 PM', closed: false },
-  { day: 'Sunday',    open: '5:00 PM', close: '10:00 PM', closed: false },
-]
 
 // ─── Gold Divider ─────────────────────────────────────────────────────────────
 
@@ -164,38 +153,50 @@ function ClockIcon() {
   )
 }
 
-const INFO_CARDS = [
-  {
-    icon: <LocationIcon />,
-    label: 'Location',
-    lines: ['123 Luxury Avenue', 'Prestige District'],
-    href: 'https://maps.google.com',
-    linkLabel: 'Get Directions',
-  },
-  {
-    icon: <PhoneIcon />,
-    label: 'Reservations',
-    lines: ['+92 300 0000000', 'reservations@eclat.com'],
-    href: 'tel:+923000000000',
-    linkLabel: 'Call Now',
-  },
-  {
-    icon: <MailIcon />,
-    label: 'Email Us',
-    lines: ['reservations@eclat.com', 'info@eclat.com'],
-    href: 'mailto:reservations@eclat.com',
-    linkLabel: 'Send Email',
-  },
-  {
-    icon: <ClockIcon />,
-    label: 'Hours',
-    lines: ['Mon – Sat: 5:00 PM – 11:00 PM', 'Sunday: 5:00 PM – 10:00 PM'],
-    href: '#hours',
-    linkLabel: 'View Full Hours',
-  },
-]
+function buildInfoCards(settings: SiteSettings) {
+  const mapHref =
+    settings.contact.map_embed ||
+    `https://maps.google.com/maps?q=${encodeURIComponent(settings.contact.address)}`
+  const phoneHref = `tel:${settings.contact.phone.replace(/\s/g, '')}`
 
-function InfoCards() {
+  return [
+    {
+      icon: <LocationIcon />,
+      label: 'Location',
+      lines: settings.contact.address.split(',').map((s) => s.trim()),
+      href: mapHref,
+      linkLabel: 'Get Directions',
+    },
+    {
+      icon: <PhoneIcon />,
+      label: 'Reservations',
+      lines: [settings.contact.phone, settings.contact.email],
+      href: phoneHref,
+      linkLabel: 'Call Now',
+    },
+    {
+      icon: <MailIcon />,
+      label: 'Email Us',
+      lines: [settings.contact.email],
+      href: `mailto:${settings.contact.email}`,
+      linkLabel: 'Send Email',
+    },
+    {
+      icon: <ClockIcon />,
+      label: 'Hours',
+      lines: [
+        `Mon – Fri: ${settings.hours.monday_friday}`,
+        `Saturday: ${settings.hours.saturday}`,
+        `Sunday: ${settings.hours.sunday}`,
+      ],
+      href: '#hours',
+      linkLabel: 'View Full Hours',
+    },
+  ]
+}
+
+function InfoCards({ settings }: { settings: SiteSettings }) {
+  const infoCards = useMemo(() => buildInfoCards(settings), [settings])
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
 
@@ -209,7 +210,7 @@ function InfoCards() {
           animate={inView ? 'show' : 'hidden'}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)]"
         >
-          {INFO_CARDS.map(({ icon, label, lines, href, linkLabel }) => (
+          {infoCards.map(({ icon, label, lines, href, linkLabel }) => (
             <motion.div
               key={label}
               variants={fadeUp}
@@ -470,8 +471,20 @@ function ContactForm() {
 // HOURS TABLE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function HoursTable() {
+function HoursTable({ settings }: { settings: SiteSettings }) {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' })
+  const hoursRows = useMemo(
+    () => [
+      { day: 'Monday', open: settings.hours.monday_friday, close: '', closed: false },
+      { day: 'Tuesday', open: settings.hours.monday_friday, close: '', closed: false },
+      { day: 'Wednesday', open: settings.hours.monday_friday, close: '', closed: false },
+      { day: 'Thursday', open: settings.hours.monday_friday, close: '', closed: false },
+      { day: 'Friday', open: settings.hours.monday_friday, close: '', closed: false },
+      { day: 'Saturday', open: settings.hours.saturday, close: '', closed: false },
+      { day: 'Sunday', open: settings.hours.sunday, close: '', closed: false },
+    ],
+    [settings.hours]
+  )
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
 
@@ -498,14 +511,14 @@ function HoursTable() {
         id="hours"
         className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-sm overflow-hidden"
       >
-        {HOURS.map(({ day, open, close, closed }, i) => {
+        {hoursRows.map(({ day, open, close, closed }, i) => {
           const isToday = day === today
           return (
             <div
               key={day}
               className={[
                 'flex items-center justify-between px-6 py-4 transition-colors duration-200',
-                i !== HOURS.length - 1 ? 'border-b border-[var(--border-subtle)]' : '',
+                i !== hoursRows.length - 1 ? 'border-b border-[var(--border-subtle)]' : '',
                 isToday ? 'bg-[var(--accent-gold-muted)]' : 'hover:bg-[var(--bg-elevated)]',
               ].join(' ')}
             >
@@ -527,7 +540,7 @@ function HoursTable() {
                 'font-[var(--font-sans)] text-sm',
                 closed ? 'text-[var(--text-muted)]' : isToday ? 'text-[var(--accent-gold)]' : 'text-[var(--text-primary)]',
               ].join(' ')}>
-                {closed ? 'Closed' : `${open} – ${close}`}
+                {closed ? 'Closed' : open}
               </span>
             </div>
           )
@@ -559,9 +572,12 @@ function HoursTable() {
 // MAP SECTION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function MapSection() {
+function MapSection({ settings }: { settings: SiteSettings }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: true, margin: '-60px' })
+  const mapHref =
+    settings.contact.map_embed ||
+    `https://maps.google.com/maps?q=${encodeURIComponent(settings.contact.address)}`
 
   return (
     <section ref={ref} className="section-py bg-[var(--bg-secondary)] border-t border-[var(--border-subtle)]">
@@ -582,11 +598,10 @@ function MapSection() {
           </motion.h2>
           <GoldDivider />
           <motion.p variants={fadeUp} className="text-sm text-[var(--text-secondary)] font-[var(--font-sans)] font-light">
-            123 Luxury Avenue, Prestige District
+            {settings.contact.address}
           </motion.p>
         </motion.div>
 
-        {/* Map placeholder — replace with real Google Maps embed in Phase 5 admin settings */}
         <motion.div
           variants={fadeIn}
           initial="hidden"
@@ -594,64 +609,29 @@ function MapSection() {
           className="relative rounded-sm overflow-hidden border border-[var(--border-subtle)] shadow-[var(--shadow-elevated)]"
           style={{ height: '420px' }}
         >
-          {/* Gold top accent */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--accent-gold)] to-transparent z-10 opacity-70" />
-
-          {/* Decorative grid background */}
-          <div
-            className="absolute inset-0 bg-[var(--bg-elevated)]"
-            style={{
-              backgroundImage: `
-                linear-gradient(var(--border-subtle) 1px, transparent 1px),
-                linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px)
-              `,
-              backgroundSize: '40px 40px',
-            }}
-          />
-
-          {/* Subtle radial glow */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background: 'radial-gradient(ellipse at center, rgba(201,168,76,0.06) 0%, transparent 70%)',
-            }}
-          />
-
-          {/* Center pin */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5">
-            {/* Animated pin */}
-            <div className="relative flex items-center justify-center">
-              {/* Pulse rings */}
-              <div className="absolute w-20 h-20 rounded-full border border-[var(--accent-gold)]/20 animate-ping" style={{ animationDuration: '2s' }} />
-              <div className="absolute w-14 h-14 rounded-full border border-[var(--accent-gold)]/30 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.3s' }} />
-              {/* Pin circle */}
-              <div className="w-10 h-10 rounded-full bg-[var(--accent-crimson)] border-2 border-[var(--accent-gold)] flex items-center justify-center shadow-[0_0_24px_rgba(139,0,0,0.5)] z-10">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                  <circle cx="12" cy="10" r="3" fill="var(--accent-crimson)" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Address card */}
-            <div className="bg-[var(--bg-card)]/95 backdrop-blur-sm border border-[var(--border-gold)] rounded-sm px-8 py-5 flex flex-col items-center gap-3 shadow-[var(--shadow-elevated)] max-w-sm text-center">
-              <p className="text-heading-md text-[var(--text-primary)]">Éclat Fine Dining</p>
-              <div className="divider-gold" />
-              <p className="text-sm text-[var(--text-secondary)] font-[var(--font-sans)] font-light leading-relaxed">
-                123 Luxury Avenue<br />Prestige District
+          {settings.contact.map_embed ? (
+            <iframe
+              title="Restaurant location"
+              src={settings.contact.map_embed}
+              className="absolute inset-0 w-full h-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-[var(--bg-elevated)]">
+              <p className="text-sm text-[var(--text-secondary)] font-[var(--font-sans)] font-light text-center px-6">
+                {settings.contact.address}
               </p>
               <a
-                href="https://maps.google.com"
+                href={mapHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-gold !py-2 !px-5 !text-[0.65rem] mt-1"
+                className="btn-gold !py-2 !px-5 !text-[0.65rem]"
               >
                 Open in Google Maps
               </a>
             </div>
-
-          
-          </div>
+          )}
         </motion.div>
       </div>
     </section>
@@ -723,22 +703,23 @@ function SocialStrip() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function ContactPage() {
+  const { settings } = useSiteSettings()
+
   return (
     <>
       <ContactHero />
-      <InfoCards />
+      <InfoCards settings={settings} />
 
-      {/* Main content: Form + Hours side by side */}
       <section className="section-py bg-[var(--bg-primary)]">
         <div className="container-eclat">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
-            <HoursTable />
+            <HoursTable settings={settings} />
             <ContactForm />
           </div>
         </div>
       </section>
 
-      <MapSection />
+      <MapSection settings={settings} />
       <SocialStrip />
     </>
   )

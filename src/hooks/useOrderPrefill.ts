@@ -1,35 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useCustomerPrefill } from '@/hooks/useCustomerPrefill'
 
 /**
- * Returns pre-filled customer info from the signed-in user's
- * Supabase auth metadata + profile. Use this on the checkout form
- * so returning users don't have to retype their details.
+ * @deprecated Prefer useCustomerPrefill — kept for CheckoutCustomerStep.
  */
 export function useOrderPrefill() {
-  const supabase = createClient()
-  const [prefill, setPrefill] = useState({
-    name:    '',
-    email:   '',
-    phone:   '',
-  })
-  const [ready, setReady] = useState(false)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const u = session.user
-        setPrefill({
-          name:  u.user_metadata?.full_name ?? '',
-          email: u.email ?? '',
-          phone: u.user_metadata?.phone ?? '',
-        })
-      }
-      setReady(true)
-    })
-  }, [])
-
-  return { prefill, ready }
+  const { prefill, ready } = useCustomerPrefill()
+  return {
+    prefill: {
+      name: prefill.name,
+      email: prefill.email,
+      phone: prefill.phone,
+    },
+    ready,
+  }
 }

@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useMemo } from 'react'
 import Link from 'next/link'
+import { useSiteSettings } from '@/hooks/useSiteSettings'
+import NewsletterForm from '@/components/public/NewsletterForm'
 
 // ─── Social Icons ─────────────────────────────────────────────────────────────
 
@@ -41,103 +43,6 @@ const NAV_LINKS = [
   { href: '/contact',      label: 'Contact Us' },
 ]
 
-// ─── Newsletter ───────────────────────────────────────────────────────────────
-
-function NewsletterForm() {
-  const [email, setEmail] = useState('')
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
-  const [msg, setMsg] = useState('')
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!email.trim()) return
-    setStatus('loading')
-    try {
-      const res = await fetch('/api/newsletter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-      if (!res.ok) throw new Error()
-      setStatus('success')
-      setMsg("You're on the list.")
-      setEmail('')
-    } catch {
-      setStatus('error')
-      setMsg('Something went wrong. Please try again.')
-    }
-  }
-
-  if (status === 'success') {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0' }}>
-        <div style={{ width: 20, height: 20, border: '1px solid var(--accent-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" strokeWidth="2.5" strokeLinecap="round">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-        </div>
-        <span style={{ fontFamily: 'var(--font-sans)', color: 'var(--accent-gold)', fontSize: 13, fontWeight: 300, letterSpacing: '0.05em' }}>
-          {msg}
-        </span>
-      </div>
-    )
-  }
-
-  return (
-    <form onSubmit={handleSubmit} noValidate>
-      <div style={{ display: 'flex' }}>
-        <input
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="your@email.com"
-          required
-          disabled={status === 'loading'}
-          aria-label="Email for newsletter"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 12,
-            letterSpacing: '0.05em',
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(201,168,76,0.2)',
-            borderRight: 'none',
-            color: 'white',
-            padding: '11px 14px',
-            outline: 'none',
-            flex: 1,
-            minWidth: 0,
-            width: '100%',
-          }}
-        />
-        <button
-          type="submit"
-          disabled={status === 'loading' || !email.trim()}
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 9,
-            letterSpacing: '0.3em',
-            background: 'var(--accent-gold)',
-            color: '#0a0a0a',
-            border: 'none',
-            padding: '11px 18px',
-            cursor: 'pointer',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            flexShrink: 0,
-            opacity: status === 'loading' ? 0.6 : 1,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {status === 'loading' ? '…' : 'Join'}
-        </button>
-      </div>
-      {status === 'error' && (
-        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: '#f87171', marginTop: 6, fontWeight: 300 }}>{msg}</p>
-      )}
-    </form>
-  )
-}
-
 // ─── Section Header ───────────────────────────────────────────────────────────
 
 function SectionHeader({ label }: { label: string }) {
@@ -161,6 +66,20 @@ function SectionHeader({ label }: { label: string }) {
 
 export default function Footer() {
   const year = new Date().getFullYear()
+  const { settings } = useSiteSettings()
+
+  const phoneHref = settings.contact.phone
+    ? `tel:${settings.contact.phone.replace(/\s/g, '')}`
+    : '#'
+  const socialLinks = useMemo(
+    () =>
+      [
+        { label: 'Instagram', icon: <InstagramIcon />, href: settings.social.instagram || '#' },
+        { label: 'Facebook', icon: <FacebookIcon />, href: settings.social.facebook || '#' },
+        { label: 'TikTok', icon: <TiktokIcon />, href: settings.social.tiktok || '#' },
+      ].filter((s) => s.href && s.href !== '#'),
+    [settings.social]
+  )
 
   return (
     <footer
@@ -236,11 +155,14 @@ export default function Footer() {
 
           {/* Social icons */}
           <div style={{ display: 'flex', gap: 10 }}>
-            {[
-              { label: 'Instagram', icon: <InstagramIcon />, href: '#' },
-              { label: 'Facebook',  icon: <FacebookIcon />,  href: '#' },
-              { label: 'TikTok',    icon: <TiktokIcon />,    href: '#' },
-            ].map(s => (
+            {(socialLinks.length
+              ? socialLinks
+              : [
+                  { label: 'Instagram', icon: <InstagramIcon />, href: '#' },
+                  { label: 'Facebook', icon: <FacebookIcon />, href: '#' },
+                  { label: 'TikTok', icon: <TiktokIcon />, href: '#' },
+                ]
+            ).map(s => (
               <a
                 key={s.label}
                 href={s.href}
@@ -320,14 +242,19 @@ export default function Footer() {
             <SectionHeader label="Find Us" />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 300, color: 'rgba(255,255,255,0.45)', lineHeight: 1.8, margin: 0 }}>
-                123 Luxury Avenue<br />Prestige District
+                {settings.contact.address.split(',').map((part, i) => (
+                  <React.Fragment key={i}>
+                    {i > 0 && <br />}
+                    {part.trim()}
+                  </React.Fragment>
+                ))}
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
                   {
-                    href: 'tel:+923000000000',
-                    text: '+92 300 0000000',
+                    href: phoneHref,
+                    text: settings.contact.phone,
                     icon: (
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
                         <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013 4.18 2 2 0 015 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L9.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
@@ -335,8 +262,8 @@ export default function Footer() {
                     ),
                   },
                   {
-                    href: 'mailto:reservations@eclat.com',
-                    text: 'reservations@eclat.com',
+                    href: `mailto:${settings.contact.email}`,
+                    text: settings.contact.email,
                     icon: (
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
                         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
@@ -380,7 +307,12 @@ export default function Footer() {
                 }}>
                   Hours
                 </p>
-                {['Mon – Sat · 5:00 PM – 11:00 PM', 'Sunday · 5:00 PM – 10:00 PM'].map(h => (
+                {[
+                  `Mon – Fri · ${settings.hours.monday_friday}`,
+                  `Saturday · ${settings.hours.saturday}`,
+                  `Sunday · ${settings.hours.sunday}`,
+                  settings.hours.note ? settings.hours.note : null,
+                ].filter(Boolean).map(h => (
                   <p key={h} style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 300, color: 'rgba(255,255,255,0.35)', margin: '0 0 4px', letterSpacing: '0.02em' }}>
                     {h}
                   </p>
@@ -403,7 +335,7 @@ export default function Footer() {
               Exclusive menus, private events, and culinary stories — delivered to your inbox.
             </p>
 
-            <NewsletterForm />
+            <NewsletterForm variant="footer" />
 
             <div style={{ marginTop: 28, paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
               <p style={{

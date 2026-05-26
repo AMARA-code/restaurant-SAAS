@@ -1,5 +1,15 @@
 import type { MenuItem, MenuCategory, OrderStatus, PaymentMethod } from './database'
 
+// ── Promotions ──
+export interface AppliedPromotion {
+  id: string
+  title: string
+  code: string | null
+  discount_type: 'percentage' | 'fixed'
+  discount_value: number
+  discountAmount: number
+}
+
 // ── Cart ──
 export interface CartItem {
   id: string

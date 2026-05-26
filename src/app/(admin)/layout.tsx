@@ -18,6 +18,8 @@ import {
   LogOut,
   Menu as MenuIcon,
   X,
+  Tag,
+  Mail,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -29,6 +31,8 @@ const NAV_ITEMS = [
   { href: '/admin/gallery', label: 'Gallery', icon: Images },
   { href: '/admin/chefs', label: 'Team', icon: Users },
   { href: '/admin/blog', label: 'Blog & Events', icon: BookOpen },
+  { href: '/admin/promotions', label: 'Promotions', icon: Tag },
+  { href: '/admin/newsletter', label: 'Newsletter', icon: Mail },
   { href: '/admin/revenue', label: 'Revenue', icon: BarChart3 },
   { href: '/admin/settings', label: 'Site Settings', icon: Settings },
 ]

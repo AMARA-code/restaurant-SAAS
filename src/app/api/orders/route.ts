@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { generateOrderRef } from '@/lib/utils'
 import { getSiteConfig } from '@/lib/site-settings'
-import { sendAdminNewOrderEmail } from '@/lib/email'
+import { clearInactiveReminderSent } from '@/lib/inactive-customers'
 import { isDigitalPayment } from '@/lib/orders'
 import type { PaymentMethod } from '@/types/database'
-import type { CartItem } from '@/types/index'
+import type { AppliedPromotion, CartItem } from '@/types/index'
+import { incrementPromotionUses } from '@/lib/promotions-server'
 
 interface CreateOrderBody {
   customer_name: string
@@ -17,6 +18,7 @@ interface CreateOrderBody {
   payment_screenshot?: string
   payment_reference?: string
   items: CartItem[]
+  promotion?: AppliedPromotion | null
 }
 
 export async function POST(request: Request) {
@@ -33,6 +35,7 @@ export async function POST(request: Request) {
       payment_screenshot,
       payment_reference,
       items,
+      promotion,
     } = body
 
     if (!customer_name?.trim() || !customer_phone?.trim() || !delivery_address?.trim()) {
@@ -54,7 +57,11 @@ export async function POST(request: Request) {
     const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
     const delivery_fee = siteConfig.delivery_fee
-    const total_amount = subtotal + delivery_fee
+    const discount_amount =
+      promotion?.discountAmount && promotion.discountAmount > 0
+        ? Math.min(promotion.discountAmount, subtotal)
+        : 0
+    const total_amount = Math.max(0, subtotal + delivery_fee - discount_amount)
     const order_ref = generateOrderRef()
 
     const supabase = await createAdminClient()
@@ -129,6 +136,11 @@ export async function POST(request: Request) {
         delivery_fee,
         total_amount,
         special_instructions: special_instructions?.trim() || null,
+        ...(discount_amount > 0 && promotion?.id
+          ? {
+              admin_notes: `Promotion: ${promotion.title} (−${discount_amount})`,
+            }
+          : {}),
       })
       .select('*')
       .single()
@@ -156,10 +168,20 @@ export async function POST(request: Request) {
     }
 
     try {
-      await sendAdminNewOrderEmail(order)
-    } catch (emailErr) {
-      console.error('Admin order notification error:', emailErr)
+      await clearInactiveReminderSent(customer_id)
+    } catch (clearErr) {
+      console.error('Clear inactive reminder flag:', clearErr)
     }
+
+    if (promotion?.id && discount_amount > 0) {
+      try {
+        await incrementPromotionUses(promotion.id)
+      } catch (promoErr) {
+        console.error('Increment promotion uses:', promoErr)
+      }
+    }
+
+    // Customer receives one confirmation email when admin confirms the order
 
     return NextResponse.json({
       success: true,

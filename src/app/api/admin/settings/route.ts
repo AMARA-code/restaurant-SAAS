@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/server'
 
 export async function GET() {
@@ -41,6 +42,10 @@ export async function PUT(request: Request) {
       console.error('Settings upsert:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+
+    revalidatePath('/', 'layout')
+    revalidatePath('/contact')
+    revalidatePath('/order')
 
     return NextResponse.json({ success: true, data })
   } catch (err) {

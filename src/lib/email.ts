@@ -346,6 +346,46 @@ export async function sendReservationReminderEmail(
   return { ok: true as const }
 }
 
+/** Win-back email when a guest has not ordered in 15+ days. */
+export async function sendInactiveOrderReminderEmail(customer: {
+  name: string
+  email: string
+  days_since_activity: number
+}) {
+  const to = customer.email?.trim()
+  if (!to) return { ok: false as const, skipped: true }
+
+  const firstName = customer.name.trim().split(/\s+/)[0] || 'Guest'
+  const menuUrl = `${SITE_URL.replace(/\/$/, '')}/menu`
+  const orderUrl = `${SITE_URL.replace(/\/$/, '')}/order`
+
+  const body = `
+    <p style="color:#a8a8a0;font-family:sans-serif;font-size:14px;line-height:1.75;">
+      Dear ${firstName},
+    </p>
+    <p style="color:#a8a8a0;font-family:sans-serif;font-size:14px;line-height:1.75;">
+      It has been a little while since your last visit to <strong style="color:#c9a84c;">Éclat</strong> — we have been refining the menu and would love to welcome you back.
+    </p>
+    <p style="color:#a8a8a0;font-family:sans-serif;font-size:14px;line-height:1.75;">
+      From signature mains to chef's seasonal specials, there is something new waiting for you. Order for delivery or reserve a table for an evening worth savouring.
+    </p>
+    <p style="margin:28px 0 0;display:flex;flex-wrap:wrap;gap:12px;">
+      <a href="${orderUrl}" style="display:inline-block;padding:12px 22px;background:#8b0000;color:#fff;text-decoration:none;font-family:sans-serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;">Order Online</a>
+      <a href="${menuUrl}" style="display:inline-block;padding:12px 22px;border:1px solid #c9a84c;color:#c9a84c;text-decoration:none;font-family:sans-serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;">Browse Menu</a>
+    </p>
+    <p style="color:#666;font-family:sans-serif;font-size:12px;margin-top:24px;line-height:1.6;">
+      We hope to see you soon. If you have already ordered recently, please disregard this note.
+    </p>`
+
+  await sendMail({
+    to,
+    subject: `We miss you at Éclat, ${firstName}`,
+    html: orderEmailShell('A Table — and Your Favourites — Await', body),
+  })
+
+  return { ok: true as const }
+}
+
 export async function sendReservationCancelledEmail(
   reservation: Pick<ReservationBooking, 'booking_ref' | 'customer_name' | 'customer_email'>
 ) {

@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { DayPicker } from 'react-day-picker'
 import { Calendar, Users, Clock, ChevronRight, Loader2 } from 'lucide-react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useCustomerPrefill } from '@/hooks/useCustomerPrefill'
 import { toDateString, formatTime, getSlotAvailabilityLabel } from '@/lib/utils'
 import type { SlotAvailabilityState } from '@/types/index'
 import type { SlotAvailability } from '@/types/index'
@@ -17,6 +19,7 @@ type FormStep = 'datetime' | 'details'
 
 export default function ReservationForm() {
   const router = useRouter()
+  const { prefill, ready: prefillReady, isSignedIn } = useCustomerPrefill()
   const [step, setStep] = useState<FormStep>('datetime')
   const [selectedDate, setSelectedDate] = useState<Date | undefined>()
   const [partySize, setPartySize] = useState(2)
@@ -35,6 +38,16 @@ export default function ReservationForm() {
   const dateStr = selectedDate ? toDateString(selectedDate) : null
   const today = new Date()
   today.setHours(0, 0, 0, 0)
+
+  useEffect(() => {
+    if (!prefillReady) return
+    setForm((prev) => ({
+      ...prev,
+      customer_name: prev.customer_name || prefill.name,
+      customer_email: prev.customer_email || prefill.email,
+      customer_phone: prev.customer_phone || prefill.phone,
+    }))
+  }, [prefillReady, prefill])
 
   const fetchSlots = useCallback(async (date: string) => {
     setLoadingSlots(true)
@@ -310,6 +323,14 @@ export default function ReservationForm() {
               <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.5rem' }}>
                 Guest Information
               </h2>
+              {!isSignedIn && (
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  <Link href="/signin?redirect=/reservations" className="text-[var(--accent-gold)] hover:underline">
+                    Sign in
+                  </Link>{' '}
+                  to auto-fill your details.
+                </p>
+              )}
               {(
                 [
                   ['customer_name', 'Full Name', 'text'],

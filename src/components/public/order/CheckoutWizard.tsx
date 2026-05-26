@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useId } from 'react'
+import { useState, useEffect, useId, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -14,10 +14,12 @@ import {
   ShoppingBag,
 } from 'lucide-react'
 import { useCart } from '@/hooks/useCart'
-import { createClient } from '@/lib/supabase/client'
+import { useCustomerPrefill } from '@/hooks/useCustomerPrefill'
+import { useSiteSettings } from '@/hooks/useSiteSettings'
 import { formatPrice } from '@/lib/utils'
 import { DEFAULT_SITE_CONFIG, PAYMENT_METHOD_LABELS } from '@/lib/constants'
-import type { SiteConfig } from '@/types/index'
+import type { AppliedPromotion, SiteConfig } from '@/types/index'
+import PromotionBanner from '@/components/public/checkout/PromotionBanner'
 import type { PaymentMethod } from '@/types/database'
 import { CrimsonButton, GoldButton, OutlineButton } from '@/components/ui/Button'
 import CheckoutDigitalPayment from '@/components/public/order/CheckoutDigitalPayment'
@@ -40,6 +42,8 @@ export default function CheckoutWizard() {
   const router = useRouter()
   const uploadFolder = useId().replace(/:/g, '')
   const { items, total, clearCart, isEmpty } = useCart()
+  const { prefill, ready: prefillReady } = useCustomerPrefill()
+  const { settings: siteSettings } = useSiteSettings()
   const [step, setStep] = useState<Step>('details')
   const [siteConfig, setSiteConfig] = useState<SiteConfig>(DEFAULT_SITE_CONFIG)
   const [submitting, setSubmitting] = useState(false)
@@ -50,6 +54,11 @@ export default function CheckoutWizard() {
     order_ref: string
     payment_method: PaymentMethod
   } | null>(null)
+  const [appliedPromotion, setAppliedPromotion] = useState<AppliedPromotion | null>(null)
+
+  const handlePromoApplied = useCallback((promo: AppliedPromotion | null) => {
+    setAppliedPromotion(promo)
+  }, [])
 
   const [form, setForm] = useState({
     name: '',
@@ -61,27 +70,27 @@ export default function CheckoutWizard() {
   })
 
   const deliveryFee = siteConfig.delivery_fee
-  const grandTotal = total + deliveryFee
+  const discountAmount = appliedPromotion?.discountAmount ?? 0
+  const grandTotal = Math.max(0, total + deliveryFee - discountAmount)
 
   useEffect(() => {
-    async function loadSettings() {
-      const supabase = createClient()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase as any).from('site_settings').select('key, value')
-      if (!data?.length) return
+    setSiteConfig((prev) => ({
+      ...prev,
+      delivery_fee: siteSettings.delivery.fee || prev.delivery_fee,
+      min_order: siteSettings.delivery.min_order || prev.min_order,
+    }))
+  }, [siteSettings])
 
-      const map = Object.fromEntries(
-        (data as { key: string; value: unknown }[]).map((r) => [r.key, r.value])
-      )
-      setSiteConfig((prev) => ({
-        ...prev,
-        delivery_fee: Number(map.delivery_fee) || prev.delivery_fee,
-        easypaisa_number: String(map.easypaisa_number ?? prev.easypaisa_number),
-        jazzcash_number: String(map.jazzcash_number ?? prev.jazzcash_number),
-      }))
-    }
-    loadSettings()
-  }, [])
+  useEffect(() => {
+    if (!prefillReady) return
+    setForm((prev) => ({
+      ...prev,
+      name: prev.name || prefill.name,
+      email: prev.email || prefill.email,
+      phone: prev.phone || prefill.phone,
+      address: prev.address || prefill.address,
+    }))
+  }, [prefillReady, prefill])
 
   function updateField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -155,6 +164,7 @@ export default function CheckoutWizard() {
           payment_screenshot: isDigital(form.payment_method) ? paymentScreenshot : undefined,
           payment_reference: isDigital(form.payment_method) ? paymentReference : undefined,
           items,
+          promotion: appliedPromotion,
         }),
       })
 
@@ -205,6 +215,9 @@ export default function CheckoutWizard() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      {step !== 'success' && !isEmpty && (
+        <PromotionBanner cartSubtotal={total} onPromoApplied={handlePromoApplied} />
+      )}
       {step !== 'success' && (
         <div className="flex items-center justify-center gap-2 mb-12 flex-wrap">
           {STEPS.map((s, i) => {
@@ -496,6 +509,16 @@ export default function CheckoutWizard() {
                 <span style={{ color: 'var(--text-muted)' }}>Delivery</span>
                 <span>{formatPrice(deliveryFee)}</span>
               </div>
+              {discountAmount > 0 && appliedPromotion && (
+                <div className="flex justify-between">
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    Promo ({appliedPromotion.title})
+                  </span>
+                  <span style={{ color: 'var(--accent-gold)' }}>
+                    −{formatPrice(discountAmount)}
+                  </span>
+                </div>
+              )}
               <div className="divider-gold my-3" />
               <div className="flex justify-between">
                 <span style={{ fontWeight: 500 }}>Total</span>

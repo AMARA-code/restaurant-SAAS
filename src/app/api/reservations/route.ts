@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
-import { createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { generateBookingRef } from '@/lib/utils'
 import { validateSlotCapacity } from '@/lib/reservation-slots-server'
-import { sendReservationReceivedEmail } from '@/lib/email'
+import { normalizeTimeSlot } from '@/lib/reservations'
 import type { ReservationFormData } from '@/types/index'
 
 export async function POST(request: Request) {
@@ -55,7 +55,10 @@ export async function POST(request: Request) {
       )
     }
 
-    const capacity = await validateSlotCapacity(date, time_slot, party_size)
+    const normalizedSlot = normalizeTimeSlot(time_slot)
+    const normalizedEmail = customer_email.trim().toLowerCase()
+
+    const capacity = await validateSlotCapacity(date, normalizedSlot, party_size)
     if (!capacity.ok) {
       return NextResponse.json({ error: capacity.error }, { status: 409 })
     }
@@ -64,6 +67,29 @@ export async function POST(request: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any
 
+    // Same guest cannot hold two bookings for the same date + time
+    const { data: existingBooking } = await db
+      .from('reservations')
+      .select('id, booking_ref')
+      .eq('date', date)
+      .eq('customer_email', normalizedEmail)
+      .in('status', ['pending', 'confirmed'])
+      .limit(20)
+
+    const duplicate = (existingBooking ?? []).find(
+      (r: { time_slot: string }) => normalizeTimeSlot(r.time_slot) === normalizedSlot
+    )
+
+    if (duplicate) {
+      return NextResponse.json(
+        {
+          error:
+            'You already have a reservation for this date and time. Cancel it first or choose another slot.',
+        },
+        { status: 409 }
+      )
+    }
+
     const booking_ref = generateBookingRef()
     const cancel_token = randomUUID()
 
@@ -71,7 +97,7 @@ export async function POST(request: Request) {
     const { data: existingCustomer } = await db
       .from('customers')
       .select('id')
-      .eq('email', customer_email.trim())
+      .eq('email', normalizedEmail)
       .maybeSingle()
 
     if (existingCustomer) {
@@ -88,7 +114,7 @@ export async function POST(request: Request) {
         .from('customers')
         .insert({
           name: customer_name.trim(),
-          email: customer_email.trim(),
+          email: normalizedEmail,
           phone: customer_phone.trim(),
         })
         .select('id')
@@ -96,18 +122,28 @@ export async function POST(request: Request) {
       customer_id = created?.id ?? null
     }
 
+    // Link auth user when signed in
+    const authClient = await createClient()
+    const {
+      data: { user },
+    } = await authClient.auth.getUser()
+
     const insertPayload: Record<string, unknown> = {
       booking_ref,
       customer_id,
       customer_name: customer_name.trim(),
-      customer_email: customer_email.trim(),
+      customer_email: normalizedEmail,
       customer_phone: customer_phone.trim(),
       date,
-      time_slot,
+      time_slot: normalizedSlot,
       party_size,
       status: 'pending',
       special_requests: special_requests?.trim() || null,
       cancel_token,
+    }
+
+    if (user?.id) {
+      insertPayload.user_id = user.id
     }
 
     let reservation: Record<string, unknown> | null = null
@@ -115,7 +151,7 @@ export async function POST(request: Request) {
 
     const attempts: Record<string, unknown>[] = [
       insertPayload,
-      { ...insertPayload, cancel_token: undefined },
+      { ...insertPayload, cancel_token: undefined, user_id: undefined },
     ]
 
     for (const payload of attempts) {
@@ -149,13 +185,7 @@ export async function POST(request: Request) {
       )
     }
 
-    try {
-      await sendReservationReceivedEmail(
-        reservation as Parameters<typeof sendReservationReceivedEmail>[0]
-      )
-    } catch (emailErr) {
-      console.error('Reservation received email error:', emailErr)
-    }
+    // No email on pending — guest receives confirmation only when admin confirms
 
     return NextResponse.json({ success: true, data: reservation })
   } catch (err) {

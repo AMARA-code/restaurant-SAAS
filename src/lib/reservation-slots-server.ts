@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import {
   DEFAULT_RESERVATION_SLOTS,
   computeSlotAvailability,
+  normalizeTimeSlot,
   parseReservationSlotsFromSettings,
 } from '@/lib/reservations'
 import type { ReservationSlotConfig, SlotAvailability } from '@/types/index'
@@ -57,7 +58,8 @@ export async function validateSlotCapacity(
   party_size: number
 ): Promise<{ ok: boolean; error?: string }> {
   const availability = await getSlotsForDate(date)
-  const slot = availability.find((s) => s.time_slot === time_slot)
+  const slotKey = normalizeTimeSlot(time_slot)
+  const slot = availability.find((s) => normalizeTimeSlot(s.time_slot) === slotKey)
 
   if (!slot) {
     return { ok: false, error: 'Invalid time slot' }

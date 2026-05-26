@@ -95,7 +95,7 @@ export async function updateReservationStatus(
     }
   }
 
-  if (status === 'confirmed') {
+  if (status === 'confirmed' && existing.status !== 'confirmed') {
     const { data: fresh } = await db
       .from('reservations')
       .select('*')

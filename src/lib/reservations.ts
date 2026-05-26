@@ -27,6 +27,14 @@ export function holdsSlot(status: string): boolean {
   return (SLOT_HOLDING_STATUSES as readonly string[]).includes(status)
 }
 
+/** Normalize "18:00:00" and "18:00" to the same HH:mm key for matching. */
+export function normalizeTimeSlot(time: string): string {
+  const parts = time.trim().split(':')
+  const h = (parts[0] ?? '0').padStart(2, '0')
+  const m = (parts[1] ?? '00').slice(0, 2).padStart(2, '0')
+  return `${h}:${m}`
+}
+
 export function computeSlotAvailability(
   slots: ReservationSlotConfig[],
   reservations: ActiveReservation[]
@@ -34,9 +42,10 @@ export function computeSlotAvailability(
   const active = reservations.filter((r) => holdsSlot(r.status))
 
   return slots.map((slot) => {
+    const slotKey = normalizeTimeSlot(slot.time_slot)
     const booked = active
-      .filter((r) => r.time_slot === slot.time_slot)
-      .reduce((sum, r) => sum + r.party_size, 0)
+      .filter((r) => normalizeTimeSlot(r.time_slot) === slotKey)
+      .reduce((sum, r) => sum + (Number(r.party_size) || 0), 0)
     const remaining = Math.max(0, slot.max_covers - booked)
     const is_full = remaining <= 0
     const availability: SlotAvailability['availability'] = is_full

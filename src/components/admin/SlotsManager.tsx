@@ -9,6 +9,7 @@ import {
   removeAdminSlot,
 } from '@/app/(admin)/admin/reservations/slots/actions'
 import { CrimsonButton, OutlineButton } from '@/components/ui/Button'
+import SlotAvailabilityPanel from '@/components/admin/SlotAvailabilityPanel'
 import toast from 'react-hot-toast'
 
 const emptyForm = {
@@ -77,6 +78,7 @@ export default function SlotsManager({ slots }: { slots: ReservationSlotRow[] })
 
   return (
     <div className="space-y-8">
+      <SlotAvailabilityPanel />
       <form
         onSubmit={handleSave}
         className="card-eclat p-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end"
@@ -200,7 +202,12 @@ export default function SlotsManager({ slots }: { slots: ReservationSlotRow[] })
                     {slot.time_slot}
                   </td>
                   <td className="px-4 py-3">{slot.label}</td>
-                  <td className="px-4 py-3">{slot.max_covers}</td>
+                  <td className="px-4 py-3">
+                    {slot.max_covers}
+                    <span className="block text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                      max covers
+                    </span>
+                  </td>
                   <td className="px-4 py-3">{slot.sort_order}</td>
                   <td className="px-4 py-3">
                     {slot.is_active ? 'Yes' : 'No'}
